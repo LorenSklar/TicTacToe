@@ -1,8 +1,14 @@
+from config import *
+from math import log
+
 class Board():
 	def __init__(self, rows = 8, columns = 0):
 
 		# set number of rows
 		self.rows = rows
+
+		# set row height
+		self.row_height = 1
 
 		# set number of columns
 		if columns > 0:
@@ -11,95 +17,139 @@ class Board():
 		else:
 			self.columns = rows
 
-		# guarantee row label width & cell size are each a single character
-		assert self.rows <= 9
-		assert self.columns <= 26
+		self.column_width = int(log(self.columns - 1, 26) + 1)
 
 		# insert empty cells
-		self.data = [[32 for c in range(self.columns + 1)] for r in range(self.rows + 1)]
+		self.data = [[0 for c in range(self.columns + 1)] for r in range(self.rows + 1)]
 
-		# insert letters for column names
-		for c in range(1, self.columns + 1):
-			self.data[0][c] = ord("A") + c - 1
+	# convert column number to letter
+	def num2let(self, number):
+		alpha = ""
+		number -= 1
+		while number >= 0:
+			digit = ord("A")
+			digit += number % 26 
 
-		# insert numbers for row names
-		for r in range(1, self.rows + 1):
-			self.data[r][0] = ord("1") + rows - r
+			alpha = chr(digit) + alpha
+
+			number /= 26
+			number = int(number)
+			number -= 1
+
+		return alpha
+
+	# construct column label
+	def get_column_label(self, r, c):
+		# get label
+		alpha = self.num2let(c)
+		
+		# how wide is column?
+		width = self.column_width
+
+		# center label in column
+		width -= len(alpha)
+		right = width // 2
+		left = width - right
+		label = " " * left + alpha + " " * right
+
+		return label
 
 	# construct row label
-	def get_label(self, r):
-		# initialize empty label
-		label = ""
+	def get_row_label(self, r):
+		# maximum width of label?
+		big = str(self.rows)
 
-		# add initial space
-		label += " "
+		# this label?
+		alpha = str(self.rows - r + 1)
 
-		# add single character
-		num = self.data[r][0]
-		label += chr(num)
+		# difference?
+		spaces = len(big) - len(alpha)
 
-		# add final space
-		label += " "
-	
+		# construct row label
+		label = " " * spaces + alpha
+
 		return label
 
 	# construct empty row label
-	def get_empty(self, r):
-		return "   "
+	def get_empty_label(self, r):
+		# determine 
+		width = len(str(self.rows))
 
-	# construct a single square using board data
-	def get_square(self, r, c):
-		# initialize empty cell
-		square = ""
+		# construct row label
+		label = " " * width
 
-		# add initial space
-		square += " "
+		return label
 
-		# add single character
-		num = self.data[r][c]
-		square += chr(num)
+	# construct a single cell using board data
+	def get_cell(self, r, c):
 
-		# add final space
-		square += " "	
+		# column width?
+		width = self.column_width
+		
+		# find symbol
+		i = self.data[r][c]
+		alpha = SYMBOLS[i]
 
-		return square	
+		# center label in column
+		width -= len(alpha)
+		right = width // 2
+		left = width - right
 
-	# construct boarder for a single sqaure
+		cell = " " * left + alpha + " " * right
+
+		return cell
+
+	# construct boarder for a single cell
 	def get_boarder(self, r, c):
-		return " - "
+		# column width?
+		width = self.column_width
+
+		return "-" * width
 
 	# construct a full line for display
-	def print_line(self, r , sep, label, content):
-		# start with row label
-		line = label(r)
+	def print_line(self, r, label, content, seperator):
+		# start single space
+		line = " "
+
+		# add row label
+		line += label(r)
 
 		# add each cell
 		for c in range(1, self.columns + 1):
-			line += sep
+			line += seperator
 			line += content(r, c)
 
 		# add final separator
-		line += sep
+		line += seperator
 
 		# repeat row label
 		line += label(r)
+
+		# add final space
+		line += " "
 
 		print(line)
 
 	# display entire board
 	def display(self):
-		# start with header row
-		self.print_line(0, " ", self.get_empty, self.get_square)
+		# start with column labels
+		self.print_line(None, self.get_empty_label, self.get_column_label, "   ")
 
 		# print each row
 		for r in range(1, self.rows + 1):
-			self.print_line(None, "+", self.get_empty, self.get_boarder)
-			self.print_line(r, "|", self.get_label, self.get_square)
+			self.print_line(None, self.get_empty_label, self.get_boarder, " + ")
+			self.print_line(r, self.get_row_label, self.get_cell, " | ")
 
 		# print final boarder
-		self.print_line(None, "+", self.get_empty, self.get_boarder)
+		self.print_line(None, self.get_empty_label, self.get_boarder, " + ")
 
-		# repeat header row
-		self.print_line(0, " ", self.get_empty, self.get_square)
+		# repeat column labels
+		self.print_line(None, self.get_empty_label, self.get_column_label, "   ")
 
+
+class Player():
+  def __init__(self, name, symbol, go):
+    self.name = name
+    self.symbol = symbol
+    self.go = go
 
