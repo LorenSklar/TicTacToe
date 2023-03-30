@@ -1,105 +1,126 @@
 ## MODULES
 from games import *
 from random import randint
+from random import choice as randchoice
 
 ## FUNCTIONS
-def setup(board_size = 3, player_count = 2):
-  # create board
-  board = Board(board_size)
-
-  # add players
-  none = Player(None, " ", None)
-
-  player = Player("Player", "X", player_picks)
+def add_players(player_count = 2, skill = 0):
+  names = ["No one", "Player", "Computer"]
+  symbols = ["-", "X", "O"]
+  actions = [None, player_picks, computer_picks]
+  visible = [True, False, True]
   
-  computer = Player("Computer", "O", computer_picks, show = True, skill = 0)
+  player_count += 1
+  player_list = []
+  for i in range(player_count):
+    player_list.append(Player(names[i], symbols[i], actions[i], visible[i]))
 
-  player_list = [none, player, computer]
-
-  for player in player_list: 
-    board.pieces.append(player.symbol)
-
-  return board, player_list
-
-def player_picks(board):
-  valid = False
-  while not valid:
-    move = input("Move? ")
-    row, col = board.parse(move)
-    valid = is_valid(t3, row, col)
-  return row, col
+  return player_list
 
 def computer_picks(board):
-  valid = False
-  while not valid:
-    row = randint(0, board.row_count - 1)
-    col = randint(0, board.column_count - 1)
-    valid = is_valid(board, row, col)
-  return row, col
+  r, c = 0, 0
+  while not is_valid(board, r, c):
+    r = randint(1, board.row_count)
+    c = randint(1, board.column_count)
+  return r, c
 
-def is_valid(board, row, col):
-  if board.position[row][col] == 0:
+def get_index(board, r, c):
+  assert r >= 1
+  assert r <= board.row_count
+  assert c >= 1
+  assert r <= board.column_count
+  
+  i = (r - 1) * board.row_count + (c - 1)
+  return i
+
+def get_score(match):
+  if match == 1:
+    score = 1
+  elif match == 2:
+    score = 3
+  elif match == 3:
+    score = 9
+  else:
+    score = "?"
+  return score
+
+def is_tie(board):
+  for value in board.values:
+    if value == 0:
+      return False
+  return True
+  
+def is_valid(board, r, c):
+  if r < 1 or r > board.row_count:
+    return False
+    
+  if c < 1 or c > board.column_count:
+    return False
+    
+  i = get_index(board, r, c)
+  value = board.values[i]
+  if value == 0:
     return True
   else:
     return False
   
 def is_win(board):
-  # check rows
-  for r in range(board.row_count):
-    row = []
-    for c in range(board.column_count):
-      row.append(board.position[r][c])
-      
-    player = row[0]
-    if player > 0:
-      if row.count(player) == board.column_count:
-        return player
+  rows = board.rows + board.columns + board.diagonals
+  for row in rows:
+    r, c = row[0]
+    i = get_index(board, r, c)
+    first_value = board.values[i]
+    
+    if first_value == 0:
+      continue
 
-  # check columns
-  for c in range(board.column_count):
-    column = []
-    for r in range(board.row_count):
-      column.append(board.position[r][c])
-      
-    player = column[0]
-    if player > 0:
-      if column.count(player) == board.row_count:
-        return player
+    for r, c in row:
+      i = get_index(board, r, c)
+      value = board.values[i]
 
-  # check diagonals
-  down = []
-  up = []
-  for i in range(board.row_count):
-    down.append(board.position[i][i])
-    up.append(board.position[i][-i-1])
+      if value != first_value:
+        break
 
-  # from top left to bottom right
-  player = down[0]
-  if player > 0:
-    if down.count(player) == board.row_count:
-      return player
-
-  # from bottom left to top right
-  player = up[0]
-  if player > 0:
-    if up.count(player) == board.row_count:
-      return player
-      
+    else:
+      return first_value
+    
   return 0
 
-def is_tie(board):
-  for r in range(board.row_count):
-    for c in range(board.column_count):
-      if board.position[r][c] == 0:
-        return False
+def parse(move):
+  rs = ""
+  cs = ""
+  for character in move:
+    if character.isnumeric():
+      rs += character
 
-  return True
+    if character.isalpha():
+      cs += character.upper()
+
+  r = int(rs)
+
+  c = ord(cs) - ord("A") + 1
+
+  return r, c
+  
+def player_picks(board):
+  message = "Move? "
+  r, c = 0, 0
+  while not is_valid(board, r, c):
+    move = input(message)
+    message = "Try again? "
+    r, c = parse(move)
+  return r, c
+
   
 ## MAIN
-t3, player_list = setup(3, 2)
-t3.display()
+t3 = Board(3)
 
 player_index = 0
+player_list = add_players()
+for player in player_list:
+  t3.symbol_list.append(player.symbol)
+
+t3.display()
 
 play = True
 while play:
@@ -110,10 +131,10 @@ while play:
   player = player_list[player_index]
    
   # player moves
-  row, col = player.go(t3)
+  r, c = player.go(t3)
 
   # update board
-  t3.update(row, col, player_index)
+  t3.update(r, c, player_index)
 
   # display board
   if player.show:
