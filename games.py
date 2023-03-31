@@ -7,7 +7,7 @@ class Player():
     self.skill = skill
     
 class Board():
-  def __init__ (self, row_count = 8, column_count = 0):
+  def __init__ (self, row_count = 8, column_count = 0, full_count = 0):
     self.row_count = row_count
 
     if column_count > 0:
@@ -15,6 +15,12 @@ class Board():
 
     else:
       self.column_count = row_count
+
+    if full_count > 0:
+      self.full_count = full_count
+
+    else:
+      self.full_count = row_count
 
     assert row_count < 10
     assert column_count < 10
@@ -79,4 +85,5 @@ class Board():
   def update(self, r, c, player_index):
     i = (r - 1) * self.column_count + (c - 1)
     self.values[i] = player_index
-   
+    
+
