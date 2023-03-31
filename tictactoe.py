@@ -1,6 +1,5 @@
 ## MODULES
 from games import *
-from random import randint
 from random import choice as randchoice
 
 ## FUNCTIONS
@@ -14,16 +13,25 @@ def add_players(player_count = 2, skill = 0):
   player_list = []
   for i in range(player_count):
     player_list.append(Player(names[i], symbols[i], actions[i], visible[i]))
-
   return player_list
 
-def computer_picks(board):
-  r, c = 0, 0
-  while not is_valid(board, r, c):
-    r = randint(1, board.row_count)
-    c = randint(1, board.column_count)
-  return r, c
+def computer_picks(board, player_index, skill):
+  scores = score_all(board, player_index)
 
+  score_list= []
+  for move, score in scores.items():
+    r = move[0]
+    c = move[1]
+    score_list.append((score, r, c))
+  
+  score_list.sort()
+  score_list.reverse()
+  score_selection = score_list[:1]
+
+  score, r, c = randchoice(score_selection)
+
+  return r, c
+  
 def get_index(board, r, c):
   assert r >= 1
   assert r <= board.row_count
@@ -32,17 +40,6 @@ def get_index(board, r, c):
   
   i = (r - 1) * board.row_count + (c - 1)
   return i
-
-def get_score(match):
-  if match == 1:
-    score = 1
-  elif match == 2:
-    score = 3
-  elif match == 3:
-    score = 9
-  else:
-    score = "?"
-  return score
 
 def is_tie(board):
   for value in board.values:
@@ -102,7 +99,7 @@ def parse(move):
 
   return r, c
   
-def player_picks(board):
+def player_picks(board, player_index, skill):
   message = "Move? "
   r, c = 0, 0
   while not is_valid(board, r, c):
@@ -110,7 +107,75 @@ def player_picks(board):
     message = "Try again? "
     r, c = parse(move)
   return r, c
+  
+def score_all(board, current_index):
+  player_count = len(player_list)
+  
+  score_totals = {}
+  # cycle square on board
+  for r in range(1, board.row_count + 1):
+    for c in range(1, board.column_count + 1):
+        
+      # what rows include that square?
+      select_rows = board.select(r, c)
+      
+      # what if each player chose that square?
+      for player_index in range(1, player_count):
 
+        # is move valid?
+        if is_valid(board, r, c):
+          tmp = board.copy()
+          tmp.update(r, c, player_index)
+  
+          score = 0
+          for row in select_rows:
+            values = []
+            for j, k in row:
+              position_index = get_index(tmp, j, k)
+              value = tmp.values[position_index]
+              values.append(value)
+              
+              # number of empty squares?
+              e = values.count(0)
+  
+              # number of matching squares?
+              m = values.count(player_index)
+  
+              if e + m == tmp.full_count:
+                if player_index == current_index:
+                  score = score_offense(m)
+                else:
+                  score = score_defense(m)
+    
+                try:
+                  score_totals[(r, c)] += score
+      
+                except:
+                  score_totals[(r, c)] = score
+
+  return score_totals
+
+def score_defense(matches):
+  if matches == 1:
+    score = 1
+  elif matches == 2:
+    score = 3
+  elif matches == 3:
+    score = 9
+  else:
+    score = None
+  return score
+
+def score_offense(matches):
+  if matches == 1:
+    score = 1
+  elif matches == 2:
+    score = 3
+  elif matches == 3:
+    score = 9
+  else:
+    score = None
+  return score
   
 ## MAIN
 t3 = Board(3)
@@ -131,7 +196,8 @@ while play:
   player = player_list[player_index]
    
   # player moves
-  r, c = player.go(t3)
+  skill = player.skill
+  r, c = player.go(t3, player_index, skill)
 
   # update board
   t3.update(r, c, player_index)
