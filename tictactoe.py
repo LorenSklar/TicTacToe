@@ -8,38 +8,106 @@ def add_players(player_count = 2, skill = 0):
   symbols = ["-", "X", "O"]
   actions = [None, player_picks, computer_picks]
   visible = [True, False, True]
+  skills = [0, 0, 0.667]
   
   player_count += 1
   player_list = []
   for i in range(player_count):
-    player_list.append(Player(names[i], symbols[i], actions[i], visible[i]))
+    player_list.append(Player(names[i], symbols[i], actions[i], visible[i], skills[i]))
+
   return player_list
 
-def computer_picks(board, player_index, skill):
-  scores = score_all(board, player_index)
+def computer_picks(board, current_index):
+  # list moves
+  moves = list_moves(board)
 
-  score_list= []
-  for move, score in scores.items():
-    r = move[0]
-    c = move[1]
-    score_list.append((score, r, c))
-  
-  score_list.sort()
-  score_list.reverse()
-  score_selection = score_list[:1]
+  # score moves
+  offensive_totals, defensive_totals = score_moves(board, moves, current_index)
 
-  score, r, c = randchoice(score_selection)
+  # select move
+  player = player_list[current_index]
+  skill = player.skill
+  score, r, c = select_move(offensive_totals, defensive_totals, skill)
 
   return r, c
   
-def get_index(board, r, c):
-  assert r >= 1
-  assert r <= board.row_count
-  assert c >= 1
-  assert r <= board.column_count
+def list_moves(board):
+  moves = []
+  for r in range(1, board.row_count + 1):
+    for c in range(1, board.column_count + 1):
+      if is_valid(board, r, c):
+        moves.append((r, c))
+  return moves
+
+def score_moves(board, moves, current_index):
+  player_count = len(player_list)
   
-  i = (r - 1) * board.row_count + (c - 1)
-  return i
+  offensive_totals = {}
+  defensive_totals = {}
+
+  for move in moves:
+    r = move[0]
+    c = move[1]
+
+    select_rows = board.select(r, c)
+    print(select_rows)
+    for row in select_rows:
+      values = []
+      for square in row:
+        value = board.get_value(r, c)
+        values.append(value)
+
+      for player_index in range(1, player_count):
+
+        empty_count = values.count(0)
+        player_count = values.count(player_index)
+        full_count = board.full_count
+
+        if empty_count + player_count == full_count:
+          if player_count == 0:
+            score = 1
+          if player_count == 1:
+            score = 3
+          if player_count:
+            score = 9
+
+          if player_index == current_index:
+            try:
+              offensive_totals[(r, c)] += score
+            except:
+              offensive_totals[(r, c)] = score
+          else:
+            try:
+              defensive_totals[(r, c)] += score
+            except:
+              defensive_totals[(r, c)] = score
+              
+  return offensive_totals, defensive_totals
+
+def select_move(offensive_totals, defensive_totals, skill):
+  
+  offensive_scores = []
+  for move, score in offensive_totals.items():
+    r, c = move
+    offensive_scores.append((score, r, c))
+  offensive_scores.sort()
+  offensive_scores.reverse()
+  score_index = int((1 - skill) * len(offensive_scores))
+  score_index = max(1, score_index)
+
+  defensive_scores = []
+  for move, score in defensive_totals.items():
+    r, c = move
+    defensive_scores.append((score, r, c))
+  defensive_scores.sort()
+  defensive_scores.reverse()
+  score_index = int((1 - skill) * len(defensive_scores))
+  score_index = max(1, score_index)
+
+  offensive_selection = randchoice(offensive_scores)
+  defensive_selection = randchoice(offensive_scores)
+  best_move = max(offensive_selection, defensive_selection)
+  return best_move
 
 def is_tie(board):
   for value in board.values:
@@ -54,8 +122,7 @@ def is_valid(board, r, c):
   if c < 1 or c > board.column_count:
     return False
     
-  i = get_index(board, r, c)
-  value = board.values[i]
+  value = board.get_value(r, c)
   if value == 0:
     return True
   else:
@@ -65,15 +132,13 @@ def is_win(board):
   rows = board.rows + board.columns + board.diagonals
   for row in rows:
     r, c = row[0]
-    i = get_index(board, r, c)
-    first_value = board.values[i]
+    first_value = board.get_value(r, c)
     
     if first_value == 0:
       continue
 
     for r, c in row:
-      i = get_index(board, r, c)
-      value = board.values[i]
+      value = board.get_value(r, c)
 
       if value != first_value:
         break
@@ -99,7 +164,7 @@ def parse(move):
 
   return r, c
   
-def player_picks(board, player_index, skill):
+def player_picks(board, player_index):
   message = "Move? "
   r, c = 0, 0
   while not is_valid(board, r, c):
@@ -107,83 +172,22 @@ def player_picks(board, player_index, skill):
     message = "Try again? "
     r, c = parse(move)
   return r, c
-  
-def score_all(board, current_index):
-  player_count = len(player_list)
-  
-  score_totals = {}
-  # cycle square on board
-  for r in range(1, board.row_count + 1):
-    for c in range(1, board.column_count + 1):
-        
-      # what rows include that square?
-      select_rows = board.select(r, c)
-      
-      # what if each player chose that square?
-      for player_index in range(1, player_count):
 
-        # is move valid?
-        if is_valid(board, r, c):
-          tmp = board.copy()
-          tmp.update(r, c, player_index)
-  
-          score = 0
-          for row in select_rows:
-            values = []
-            for j, k in row:
-              position_index = get_index(tmp, j, k)
-              value = tmp.values[position_index]
-              values.append(value)
-              
-              # number of empty squares?
-              e = values.count(0)
-  
-              # number of matching squares?
-              m = values.count(player_index)
-  
-              if e + m == tmp.full_count:
-                if player_index == current_index:
-                  score = score_offense(m)
-                else:
-                  score = score_defense(m)
-    
-                try:
-                  score_totals[(r, c)] += score
-      
-                except:
-                  score_totals[(r, c)] = score
+def score_offense(board, r, c):
+  return 1
 
-  return score_totals
-
-def score_defense(matches):
-  if matches == 1:
-    score = 1
-  elif matches == 2:
-    score = 3
-  elif matches == 3:
-    score = 9
-  else:
-    score = None
-  return score
-
-def score_offense(matches):
-  if matches == 1:
-    score = 1
-  elif matches == 2:
-    score = 3
-  elif matches == 3:
-    score = 9
-  else:
-    score = None
-  return score
+def score_defense(board, r, c):
+  return 1
   
 ## MAIN
+track = True
+
 t3 = Board(3)
 
 player_index = 0
 player_list = add_players()
 for player in player_list:
-  t3.symbol_list.append(player.symbol)
+  t3.symbols.append(player.symbol)
 
 t3.display()
 
@@ -196,8 +200,7 @@ while play:
   player = player_list[player_index]
    
   # player moves
-  skill = player.skill
-  r, c = player.go(t3, player_index, skill)
+  r, c = player.go(t3, player_index)
 
   # update board
   t3.update(r, c, player_index)
