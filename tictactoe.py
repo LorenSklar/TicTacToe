@@ -8,7 +8,7 @@ def add_players(player_count = 2, skill = 0):
   symbols = ["-", "X", "O"]
   actions = [None, player_picks, computer_picks]
   visible = [True, False, True]
-  skills = [0, 0, 0.667]
+  skills = [0, 0, 1]
   
   player_count += 1
   player_list = []
@@ -40,47 +40,48 @@ def list_moves(board):
   return moves
 
 def score_moves(board, moves, current_index):
-  player_count = len(player_list)
-  
   offensive_totals = {}
   defensive_totals = {}
 
-  for move in moves:
-    r = move[0]
-    c = move[1]
+  player_count = len(player_list)
+  for player_index in range(1, player_count):
 
-    select_rows = board.select(r, c)
-    print(select_rows)
-    for row in select_rows:
-      values = []
-      for square in row:
-        value = board.get_value(r, c)
-        values.append(value)
+    for move in moves:
+      select_rows = board.select(move[0], move[1])
+      for row in select_rows:
+        values = []
+        for square in row:
+          r, c = square
+          value = board.get_value(r, c)
+          values.append(value)
 
-      for player_index in range(1, player_count):
+          empty = values.count(0)
+          current = values.count(current_index)
+          other = values.count(player_index)
+          full = board.full_count
 
-        empty_count = values.count(0)
-        player_count = values.count(player_index)
-        full_count = board.full_count
-
-        if empty_count + player_count == full_count:
-          if player_count == 0:
-            score = 1
-          if player_count == 1:
-            score = 3
-          if player_count:
-            score = 9
-
+          score =0
           if player_index == current_index:
-            try:
-              offensive_totals[(r, c)] += score
-            except:
-              offensive_totals[(r, c)] = score
+            if empty + current == full:
+              if current == 0:
+                score = 1
+              elif current == 1:
+                score = 3
+              elif current == 0:
+                score = 9
+
+            offensive_totals[move] = score
+
           else:
-            try:
-              defensive_totals[(r, c)] += score
-            except:
-              defensive_totals[(r, c)] = score
+            if empty + other == full:
+              if other == 0:
+                score = 1
+              elif other == 1:
+                score = 3
+              elif other == 0:
+                score = 9
+
+            defensive_totals[move] = score
               
   return offensive_totals, defensive_totals
 
@@ -92,8 +93,9 @@ def select_move(offensive_totals, defensive_totals, skill):
     offensive_scores.append((score, r, c))
   offensive_scores.sort()
   offensive_scores.reverse()
-  score_index = int((1 - skill) * len(offensive_scores))
-  score_index = max(1, score_index)
+  print(offensive_scores)
+  offense_index = int((1 - skill) * len(offensive_scores))
+  offense_index = max(1, offense_index)
 
   defensive_scores = []
   for move, score in defensive_totals.items():
@@ -101,11 +103,12 @@ def select_move(offensive_totals, defensive_totals, skill):
     defensive_scores.append((score, r, c))
   defensive_scores.sort()
   defensive_scores.reverse()
-  score_index = int((1 - skill) * len(defensive_scores))
-  score_index = max(1, score_index)
+  print(defensive_scores)
+  defense_index = int((1 - skill) * len(defensive_scores))
+  defense_index = max(1, defense_index)
 
-  offensive_selection = randchoice(offensive_scores)
-  defensive_selection = randchoice(offensive_scores)
+  offensive_selection = randchoice(offensive_scores[:offense_index])
+  defensive_selection = randchoice(defensive_scores[:defense_index])
   best_move = max(offensive_selection, defensive_selection)
   return best_move
 
